@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell \"Stop-Process -Id 58060 -Force; Stop-Process -Id 25492 -Force\")",
+      "Bash(npm start)",
+      "Bash(powershell \"Stop-Process -Id 59824 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 47460 -Force\")",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell \"Stop-Process -Id 33152 -Force\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
