@@ -93,15 +93,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { type Message } from '@/types'
 import { FILE_ICONS, FILE_CLASSES } from '@/utils/fileUtils'
 import { useUserStore } from '@/stores/userStore'
 import { findUserById } from '@/constants/users'
+import { socketService } from '@/services/socketService'
 
 const route = useRoute()
-const { currentUser } = useUserStore()
+const { currentUser, isSocketConnected, reconnectSocket } = useUserStore()
 
 // 获取聊天对象ID
 const chatUserId = computed(() => route.params.id as string)
@@ -109,164 +110,57 @@ const chatUserId = computed(() => route.params.id as string)
 // 获取聊天对象信息
 const chatUser = computed(() => findUserById(chatUserId.value))
 
-// 定义处理图片路径的函数
-const getImageUrl = (url: string) => {
-  return new URL(url, import.meta.url).href
+// 消息存储 - 每个房间的消息单独存储
+const roomMessages = ref<Map<string, Message[]>>(new Map())
+
+// 生成房间ID（与后端保持一致的排序规则）
+const generateRoomId = (userId1: string, userId2: string): string => {
+  return [userId1, userId2].sort().join('_')
 }
 
-// 根据当前登录用户和聊天对象生成初始消息
-const getInitialMessages = (): Message[] => {
-  if (!currentUser.value || !chatUser.value) return []
+// 当前房间ID
+const currentRoomId = computed(() => {
+  if (!currentUser.value || !chatUserId.value) return ''
+  return generateRoomId(currentUser.value.id, chatUserId.value)
+})
 
-  const userId = currentUser.value.id
-  const chatId = chatUser.value.id
+// 当前房间的消息
+const messages = computed(() => {
+  return roomMessages.value.get(currentRoomId.value) || []
+})
 
-  // 为每个用户对定义不同的聊天记录
-  const chatHistories: Record<string, Message[]> = {
-    // 叶清语(4) 和 林熙(1)
-    '4-1': [
-      {
-        id: '1',
-        sender: chatUser.value.name,
-        content: '在吃饭哦',
-        type: 'text',
-        time: '2025/12/02 09:10',
-        avatar: chatUser.value.avatar,
-      },
-      {
-        id: '2',
-        sender: currentUser.value.name,
-        content: '吃什么呀',
-        type: 'text',
-        time: '2025/12/02 09:11',
-        avatar: currentUser.value.avatar,
-      },
-      {
-        id: '3',
-        sender: chatUser.value.name,
-        content: '牛肉粿条',
-        type: 'text',
-        time: '2025/12/02 09:12',
-        avatar: chatUser.value.avatar,
-      },
-      {
-        id: '4',
-        sender: chatUser.value.name,
-        content: '😃',
-        type: 'emoji',
-        time: '2025/12/02 09:12',
-        avatar: chatUser.value.avatar,
-      },
-    ],
-    // 叶清语(4) 和 李苒(2)
-    '4-2': [
-      {
-        id: '1',
-        sender: chatUser.value.name,
-        content: '项目写好了没呀',
-        type: 'text',
-        time: '2025/12/02 09:08',
-        avatar: chatUser.value.avatar,
-      },
-      {
-        id: '2',
-        sender: currentUser.value.name,
-        content: '还没',
-        type: 'text',
-        time: '2025/12/02 09:10',
-        avatar: currentUser.value.avatar,
-      },
-      {
-        id: '3',
-        sender: chatUser.value.name,
-        content: '哎呀',
-        type: 'text',
-        time: '2025/12/02 09:11',
-        avatar: chatUser.value.avatar,
-      },
-      {
-        id: '4',
-        sender: chatUser.value.name,
-        content: '😆',
-        type: 'emoji',
-        time: '2025/12/02 09:12',
-        avatar: chatUser.value.avatar,
-      },
-    ],
-    // 叶清语(4) 和 沈天亦(3)
-    '4-3': [
-      {
-        id: '1',
-        sender: chatUser.value.name,
-        content: '快来打游戏',
-        type: 'text',
-        time: '2025/12/02 09:05',
-        avatar: chatUser.value.avatar,
-      },
-      {
-        id: '2',
-        sender: currentUser.value.name,
-        content: '没空啊',
-        type: 'text',
-        time: '2025/12/02 09:08',
-        avatar: currentUser.value.avatar,
-      },
-      {
-        id: '3',
-        sender: currentUser.value.name,
-        content: '😅',
-        type: 'emoji',
-        time: '2025/12/02 09:08',
-        avatar: currentUser.value.avatar,
-      },
-      {
-        id: '4',
-        sender: chatUser.value.name,
-        content: '真惨',
-        type: 'text',
-        time: '2025/12/02 09:10',
-        avatar: chatUser.value.avatar,
-      },
-      {
-        id: '5',
-        sender: chatUser.value.name,
-        content: '🤣',
-        type: 'emoji',
-        time: '2025/12/02 09:12',
-        avatar: chatUser.value.avatar,
-      },
-    ],
+// 从localStorage加载所有房间的消息
+const loadMessagesFromStorage = () => {
+  try {
+    const savedMessages = localStorage.getItem('chatRoomMessages')
+    if (savedMessages) {
+      const parsed = JSON.parse(savedMessages)
+      roomMessages.value = new Map(Object.entries(parsed))
+      console.log('📥 从localStorage加载消息历史:', roomMessages.value.size, '个房间')
+    }
+  } catch (error) {
+    console.error('加载消息历史失败:', error)
   }
-
-  // 获取对应的聊天记录，如果不存在则返回默认消息
-  const key = `${userId}-${chatId}`
-  const reverseKey = `${chatId}-${userId}`
-
-  if (chatHistories[key]) {
-    return chatHistories[key]
-  } else if (chatHistories[reverseKey]) {
-    // 如果是反向的key，需要交换发送者
-    return chatHistories[reverseKey].map(msg => ({
-      ...msg,
-      sender: msg.sender === currentUser.value?.name ? chatUser.value?.name || '' : currentUser.value?.name || '',
-      avatar: msg.sender === currentUser.value?.name ? chatUser.value?.avatar || '' : currentUser.value?.avatar || '',
-    }))
-  }
-
-  // 默认消息
-  return [
-    {
-      id: '1',
-      sender: chatUser.value.name,
-      content: '你好！',
-      type: 'text',
-      time: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-      avatar: chatUser.value.avatar,
-    },
-  ]
 }
 
-const messages = ref<Message[]>(getInitialMessages())
+// 保存所有房间的消息到localStorage
+const saveMessagesToStorage = () => {
+  try {
+    const messagesObject = Object.fromEntries(roomMessages.value)
+    localStorage.setItem('chatRoomMessages', JSON.stringify(messagesObject))
+    console.log('💾 消息历史已保存到localStorage')
+  } catch (error) {
+    console.error('保存消息历史失败:', error)
+  }
+}
+
+// 添加消息到指定房间
+const addMessageToRoom = (roomId: string, message: Message) => {
+  const roomMsgs = roomMessages.value.get(roomId) || []
+  roomMsgs.push(message)
+  roomMessages.value.set(roomId, roomMsgs)
+  saveMessagesToStorage()
+}
 const myAvatar = computed(() => currentUser.value?.avatar || '')
 
 const inputText = ref('')
@@ -282,21 +176,70 @@ const selectEmoji = (emoji: string) => {
   showEmojiPicker.value = false
 }
 
-const sendMessage = (type: 'text' | 'emoji' = 'text', content?: string) => {
-  if (type === 'text' && !inputText.value.trim()) return
+// Socket消息接收处理
+const handleMessageReceived = (message: any) => {
+  console.log('📨 收到消息:', message)
+
   if (!currentUser.value) return
 
+  // 计算消息所属的房间ID
+  const messageRoomId = generateRoomId(message.senderId, message.receiverId)
+
+  console.log('消息房间ID:', messageRoomId)
+  console.log('当前房间ID:', currentRoomId.value)
+
+  // 创建消息对象
   const newMessage: Message = {
-    id: Date.now().toString(),
-    sender: currentUser.value.name,
-    content: content || inputText.value,
-    type,
-    time: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-    avatar: currentUser.value.avatar,
+    id: message.id,
+    sender: message.senderName,
+    content: message.content,
+    type: message.type,
+    time: message.time,
+    avatar: message.avatar,
+    fileName: message.fileName,
+    fileSize: message.fileSize,
+    fileType: message.fileType,
   }
 
-  messages.value.push(newMessage)
-  inputText.value = ''
+  // 将消息添加到对应的房间（即使用户不在该房间也会保存）
+  addMessageToRoom(messageRoomId, newMessage)
+  console.log('✅ 消息已保存到房间:', messageRoomId)
+}
+
+// 发送消息
+const sendMessage = (type: 'text' | 'emoji' = 'text', content?: string) => {
+  if (type === 'text' && !inputText.value.trim()) return
+  if (!currentUser.value || !chatUser.value) return
+
+  try {
+    console.log('📤 准备发送消息')
+    console.log('Socket连接状态:', isSocketConnected.value)
+    console.log('接收者ID:', chatUserId.value)
+    console.log('消息内容:', content || inputText.value)
+    console.log('消息类型:', type)
+
+    // 通过Socket发送消息
+    if (isSocketConnected.value) {
+      console.log('✅ 通过Socket发送消息')
+      socketService.sendMessage(chatUserId.value, content || inputText.value, type)
+    } else {
+      console.log('⚠️ Socket未连接，离线模式')
+      // 如果Socket未连接，仅添加到本地（离线模式）
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        sender: currentUser.value.name,
+        content: content || inputText.value,
+        type,
+        time: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+        avatar: currentUser.value.avatar,
+      }
+      addMessageToRoom(currentRoomId.value, newMessage)
+    }
+
+    inputText.value = ''
+  } catch (error) {
+    console.error('❌ 发送消息失败:', error)
+  }
 }
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -321,46 +264,126 @@ const handleFileSelected = (event: Event) => {
   Array.from(input.files).forEach((file) => {
     const fileExt = getFileExtension(file.name)
 
-    const fileMessage: Message = {
-      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      sender: currentUser.value!.name,
-      content: '',
-      type: 'file',
-      time: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-      avatar: myAvatar.value,
-      fileName: file.name,
-      fileSize: formatFileSize(file.size),
-      fileType: fileExt,
+    try {
+      // 通过Socket发送文件消息
+      if (isSocketConnected.value) {
+        socketService.sendFileMessage(
+          chatUserId.value,
+          file.name,
+          formatFileSize(file.size),
+          fileExt
+        )
+      } else {
+        // 离线模式，仅添加到本地
+        const fileMessage: Message = {
+          id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          sender: currentUser.value!.name,
+          content: '',
+          type: 'file',
+          time: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+          avatar: myAvatar.value,
+          fileName: file.name,
+          fileSize: formatFileSize(file.size),
+          fileType: fileExt,
+        }
+        addMessageToRoom(currentRoomId.value, fileMessage)
+      }
+    } catch (error) {
+      console.error('发送文件消息失败:', error)
     }
-
-    messages.value.push(fileMessage)
   })
 
   input.value = ''
 }
 
-const handleImageSelected = (event: Event) => {
+// 压缩图片函数
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+
+        // 设置最大尺寸
+        const maxWidth = 800
+        const maxHeight = 800
+        let width = img.width
+        let height = img.height
+
+        // 计算压缩比例
+        if (width > height) {
+          if (width > maxWidth) {
+            height = height * (maxWidth / width)
+            width = maxWidth
+          }
+        } else {
+          if (height > maxHeight) {
+            width = width * (maxHeight / height)
+            height = maxHeight
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        ctx?.drawImage(img, 0, 0, width, height)
+
+        // 压缩质量设置为0.7
+        const compressedData = canvas.toDataURL('image/jpeg', 0.7)
+        resolve(compressedData)
+      }
+      img.onerror = reject
+      img.src = e.target?.result as string
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+const handleImageSelected = async (event: Event) => {
   const input = event.target as HTMLInputElement
   if (!input.files || input.files.length === 0 || !currentUser.value) return
 
-  Array.from(input.files).forEach((file) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const imageMessage: Message = {
-        id: `image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        sender: currentUser.value!.name,
-        content: e.target?.result as string,
-        type: 'image',
-        time: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-        avatar: myAvatar.value,
-        fileName: file.name,
-        fileSize: formatFileSize(file.size),
-      }
+  for (const file of Array.from(input.files)) {
+    try {
+      console.log('🖼️ 准备发送图片')
+      console.log('Socket连接状态:', isSocketConnected.value)
+      console.log('原始图片大小:', formatFileSize(file.size))
 
-      messages.value.push(imageMessage)
+      // 压缩图片
+      const imageContent = await compressImage(file)
+      console.log('压缩后大小:', formatFileSize(imageContent.length * 0.75)) // Base64 approximately 1.33x original
+
+      // 通过Socket发送图片消息
+      if (isSocketConnected.value) {
+        console.log('✅ 通过Socket发送图片')
+        socketService.sendImageMessage(
+          chatUserId.value,
+          imageContent,
+          file.name,
+          formatFileSize(file.size)
+        )
+      } else {
+        console.log('⚠️ Socket未连接，离线模式')
+        // 离线模式，仅添加到本地
+        const imageMessage: Message = {
+          id: `image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          sender: currentUser.value!.name,
+          content: imageContent,
+          type: 'image',
+          time: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+          avatar: myAvatar.value,
+          fileName: file.name,
+          fileSize: formatFileSize(file.size),
+        }
+        addMessageToRoom(currentRoomId.value, imageMessage)
+      }
+    } catch (error) {
+      console.error('❌ 发送图片消息失败:', error)
+      alert('图片处理失败，请重试')
     }
-    reader.readAsDataURL(file)
-  })
+  }
 
   input.value = ''
 }
@@ -386,6 +409,53 @@ const getFileClass = (fileType?: string) => {
   if (!fileType) return FILE_CLASSES.default
   return FILE_CLASSES[fileType as keyof typeof FILE_CLASSES] || FILE_CLASSES.default
 }
+
+// 组件挂载时的初始化
+onMounted(async () => {
+  // 从localStorage加载消息历史
+  loadMessagesFromStorage()
+
+  // 如果Socket未连接，尝试重新连接
+  if (!isSocketConnected.value && currentUser.value) {
+    await reconnectSocket()
+  }
+
+  // 监听消息接收
+  socketService.onMessageReceived(handleMessageReceived)
+
+  // 加入当前聊天室
+  if (currentUser.value && chatUser.value && isSocketConnected.value) {
+    try {
+      await socketService.joinRoom(currentUser.value.id, chatUser.value.id)
+      console.log(`✅ 已加入与 ${chatUser.value.name} 的聊天室`)
+    } catch (error) {
+      console.error('加入聊天室失败:', error)
+    }
+  }
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  // 移除消息监听
+  socketService.offMessageReceived(handleMessageReceived)
+})
+
+// 监听聊天对象变化，切换聊天室
+watch(chatUserId, async (newId, oldId) => {
+  if (newId && newId !== oldId && currentUser.value) {
+    // 消息会自动从 computed messages 中加载，无需手动重置
+
+    // 加入新的聊天室
+    if (isSocketConnected.value) {
+      try {
+        await socketService.joinRoom(currentUser.value.id, newId)
+        console.log(`✅ 切换到与用户 ${newId} 的聊天室`)
+      } catch (error) {
+        console.error('切换聊天室失败:', error)
+      }
+    }
+  }
+})
 </script>
 
 <style scoped>

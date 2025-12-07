@@ -25,7 +25,7 @@ import { RouterLink, RouterView } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 import { getOtherUsers } from '@/constants/users'
 
-const { currentUser } = useUserStore()
+const { currentUser, isUserOnline } = useUserStore()
 
 // 获取除当前用户外的其他用户作为联系人
 const contacts = computed(() => {
@@ -37,11 +37,11 @@ const contacts = computed(() => {
     id: user.id,
     name: user.name,
     avatar: user.avatar,
-    status: 'online' as const,
+    status: isUserOnline(user.id) ? 'online' : 'offline',
   }))
 })
 
- 
+
 </script>
 
 <style scoped>
@@ -89,7 +89,7 @@ h3 {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background-color: #ccc;
+  background-color: #ffffff;
   margin-left: auto;
 }
 .status-dot.online {
