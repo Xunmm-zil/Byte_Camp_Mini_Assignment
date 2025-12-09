@@ -1,14 +1,154 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="./css/reset.css">
     <link rel="stylesheet" href="./css/CV.css">
     <script src="./js/CV.js"></script>
-    <title>个人简历</title>
-</head>
+    <title>蔡梓洵 - 个人简历</title>
+</head>`
 <body>
+    <div class="resume-container">
+        <!-- 顶部装饰条 -->
+        <div class="header-decoration"></div>
+
+        <!-- 头部信息 -->
+        <div class="resume-header">
+            <div class="header-left">
+                <h1>Cai Zixun</h1>
+                <div class="job-title">求职意向：前端实习生</div>
+                <div class="contact-info">
+                    <div class="info-item">
+                        <span class="icon">📅</span>
+                        <span>年龄：20 岁</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="icon">📍</span>
+                        <span>籍贯：广东</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="icon">📱</span>
+                        <span>电话：xxxxxxxxxxxx</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="icon">✉️</span>
+                        <span>邮箱：xxxxxxxxxx@qq.com</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <img src="./img/image.png" alt="个人照片" class="">
+            </div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="resume-content">
+            <!-- 教育背景 -->
+            <section class="section education">
+                <div class="section-title">
+                    <div class="icon-wrapper">🎓</div>
+                    <h2>教育背景</h2>
+                </div>
+                <div class="education-item">
+                    <div class="edu-header">
+                        <span class="time">2024.09-至今</span>
+                        <span class="school">广东工业大学</span>
+                        <span class="major">电子信息类（本科）</span>
+                    </div>
+                    <div class="edu-details">
+                        <p><strong>专业成绩：</strong>GPA 3.79/5 （专业前 15%）</p>
+                        <p><strong>主修课程：</strong>高等数学、线性代数、复变函数、大学英语、大学物理、工程英语、C 语言、电路、信号与系统等。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 项目经历 -->
+            <section class="section projects">
+                <div class="section-title">
+                    <div class="icon-wrapper">💼</div>
+                    <h2>项目经历</h2>
+                </div>
+
+                <div class="project-item">
+                    <div class="project-header">
+                        <span class="time">2025.04-2025.05</span>
+                        <span class="project-name">进度跟踪系统</span>
+                        <span class="role">全栈开发</span>
+                    </div>
+                    <div class="project-details">
+                        <ul>
+                            <li>个人独立完成基本的前后端开发，实现了基本的功能，并撰写了相应的系统说明文档和系统展示ppt;</li>
+                            <li>通过这个项目理解了前后端的连接配置逻辑，熟练掌握了前端三剑客和 node.js;</li>
+                            <li>系统仓库为 <a href="https://github.com/Xunmm-zil/QG-Projiect-Progress-Tracking-System-Xun.git" target="_blank">https://github.com/Xunmm-zil/QG-Projiect-Progress-Tracking-System-Xun.git</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="project-item">
+                    <div class="project-header">
+                        <span class="time">2025.08-2025.09</span>
+                        <span class="project-name">爱彼迎官网</span>
+                        <span class="role">前端开发</span>
+                    </div>
+                    <div class="project-details">
+                        <ul>
+                            <li>仿照爱彼迎官网学习，独立完成了所有页面的前端搭建，并根据后端同学提供的接口文档连接了接口;</li>
+                            <li>通过这个小练习，掌握了前端页面中交互功能（如注册登录、轮播图、可视化、拖拽、粘滞等）的实现逻辑;</li>
+                            <li>系统仓库为 <a href="https://gitee.com/xunm9086/cai-zixun-yidong-front-end.git" target="_blank">https://gitee.com/xunm9086/cai-zixun-yidong-front-end.git</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 荣誉证书 -->
+            <section class="section certificates">
+                <div class="section-title">
+                    <div class="icon-wrapper">🏆</div>
+                    <h2>荣誉证书</h2>
+                </div>
+                <ul class="cert-list">
+                    <li>优秀学生二等奖学金</li>
+                    <li>优秀共青团员</li>
+                    <li>英语四级证书</li>
+                </ul>
+            </section>
+
+            <!-- 技能特长 -->
+            <section class="section skills">
+                <div class="section-title">
+                    <div class="icon-wrapper">⚡</div>
+                    <h2>技能特长</h2>
+                </div>
+                <div class="skill-list">
+                    <div class="skill-item">
+                        <strong>语言能力：</strong>大学英语 4 级（500+），6 级备考中，能够进行基础的交流、读写；
+                    </div>
+                    <div class="skill-item">
+                        <strong>代码能力：</strong>熟练掌握 html、css、js、node.js、less，初步掌握 vue3、ts；
+                    </div>
+                    <div class="skill-item">
+                        <strong>沟通能力：</strong>在校担任辅导员助理和副班长，具备良好的沟通表达能力；
+                    </div>
+                    <div class="skill-item">
+                        <strong>团队能力：</strong>具有丰富的团队经验，暑期三下乡担任队长，一项校级大创负责人等。
+                    </div>
+                </div>
+            </section>
+
+            <!-- 自我评价 -->
+            <section class="section evaluation">
+                <div class="section-title">
+                    <div class="icon-wrapper">📝</div>
+                    <h2>自我评价</h2>
+                </div>
+                <div class="self-evaluation">
+                    <p>乐观上进，善于规划任务与把控时间节点。学生工作经验丰富，具备较强责任心与沟通协调能力，能高效处理事务，实践中锻炼出优秀的团队统筹与执行能力。前端开发技能扎实，可独立完成项目开发，始终以认真负责的态度迎接新挑战。</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
     
 </body>
 </html>
